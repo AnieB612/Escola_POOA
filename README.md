@@ -12,7 +12,7 @@ Aplicação web focada no autosserviço de matrícula. O sistema descentraliza a
 
 ### Módulo do Responsável
 
-- **Formulário Guiado por Etapas**: estruturação do preenchimento dividindo a coleta em blocos lógicos — dados do aluno, dados dos responsáveis e contatos de emergência.
+- **Formulário Guiado por Etapas**: estruturação do preenchimento dividindo a coleta em blocos lógicos: dados do aluno, dados dos responsáveis e contatos de emergência.
 - **Acompanhamento de Status**: consulta ao estado atual do processo de cadastro (ex.: "Enviado", "Em Análise", "Aprovado" ou "Com Pendência").
 
 ### Módulo da Secretaria
