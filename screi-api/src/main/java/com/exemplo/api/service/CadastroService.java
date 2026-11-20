@@ -41,17 +41,7 @@ public class CadastroService {
             exigirStatus(cadastro, "editar", StatusCadastro.RASCUNHO, StatusCadastro.COM_PENDENCIA);
         }
 
-        if (dados.aluno() != null) {
-            cadastro.setAluno(dados.aluno());
-        }
-        if (dados.responsaveis() != null) {
-            cadastro.getResponsaveis().clear();
-            cadastro.getResponsaveis().addAll(dados.responsaveis());
-        }
-        if (dados.contatosEmergencia() != null) {
-            cadastro.getContatosEmergencia().clear();
-            cadastro.getContatosEmergencia().addAll(dados.contatosEmergencia());
-        }
+        cadastro.atualizarEtapa(dados.aluno(), dados.responsaveis(), dados.contatosEmergencia());
         return repository.save(cadastro);
     }
 

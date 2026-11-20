@@ -1,9 +1,6 @@
 package com.exemplo.api.service;
 
-import com.exemplo.api.model.Aluno;
 import com.exemplo.api.model.Cadastro;
-import com.exemplo.api.model.Endereco;
-import com.exemplo.api.model.Responsavel;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -13,18 +10,12 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
- * Estratégia concreta de exportação em XLSX com Apache POI (Padrão GoF Strategy).
+ * Estratégia concreta de exportação em planilha XLSX com Apache POI (GoF Strategy).
  * Atende ao requisito funcional RF013 e ao diagrama de classes UML.
- * Marcado com @Primary para Inversão de Dependência (DIP) padrão.
  */
 @Primary
 @Component("exportadorXlsx")
 public class ExportadorXlsx implements Exportador {
-
-    private static final String[] CABECALHO = {
-        "Nº", "Status", "Data de Envio", "Aluno", "CPF do Aluno", "Data de Nascimento",
-        "Logradouro", "Bairro", "Cidade", "UF", "Responsável", "Telefone", "E-mail"
-    };
 
     @Override
     public byte[] exportar(List<Cadastro> cadastros) {
@@ -36,50 +27,35 @@ public class ExportadorXlsx implements Exportador {
             headerFont.setBold(true);
             headerFont.setColor(IndexedColors.WHITE.getIndex());
 
-            CellStyle headerCellStyle = workbook.createCellStyle();
-            headerCellStyle.setFont(headerFont);
-            headerCellStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
-            headerCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
 
-            // Cria linha de cabeçalho
+            // Cabeçalho unificado
+            String[] cabecalho = CadastroLinhaRelatorio.CABECALHO;
             Row headerRow = sheet.createRow(0);
-            for (int col = 0; col < CABECALHO.length; col++) {
+            for (int col = 0; col < cabecalho.length; col++) {
                 Cell cell = headerRow.createCell(col);
-                cell.setCellValue(CABECALHO[col]);
-                cell.setCellStyle(headerCellStyle);
+                cell.setCellValue(cabecalho[col]);
+                cell.setCellStyle(headerStyle);
             }
 
-            // Preenche dados dos cadastros
-            int rowIdx = 1;
+            // Preenchimento dos dados com DTO compartilhado (DRY)
             if (cadastros != null) {
+                int rowIdx = 1;
                 for (Cadastro c : cadastros) {
                     Row row = sheet.createRow(rowIdx++);
-
-                    Aluno aluno = c.getAluno();
-                    Endereco end = aluno != null ? aluno.getEndereco() : null;
-                    Responsavel resp = (c.getResponsaveis() != null && !c.getResponsaveis().isEmpty())
-                            ? c.getResponsaveis().get(0)
-                            : null;
-
-                    row.createCell(0).setCellValue(c.getId() != null ? c.getId() : 0);
-                    row.createCell(1).setCellValue(c.getStatus() != null ? c.getStatus().name() : "");
-                    row.createCell(2).setCellValue(c.getDataEnvio() != null ? c.getDataEnvio().toString() : "");
-                    row.createCell(3).setCellValue(aluno != null && aluno.getNome() != null ? aluno.getNome() : "");
-                    row.createCell(4).setCellValue(aluno != null && aluno.getCpf() != null ? aluno.getCpf() : "");
-                    row.createCell(5).setCellValue(aluno != null && aluno.getDataNascimento() != null ? aluno.getDataNascimento().toString() : "");
-                    row.createCell(6).setCellValue(end != null && end.getLogradouro() != null ? end.getLogradouro() : "");
-                    row.createCell(7).setCellValue(end != null && end.getBairro() != null ? end.getBairro() : "");
-                    row.createCell(8).setCellValue(end != null && end.getCidade() != null ? end.getCidade() : "");
-                    row.createCell(9).setCellValue(end != null && end.getUf() != null ? end.getUf() : "");
-                    row.createCell(10).setCellValue(resp != null && resp.getNome() != null ? resp.getNome() : "");
-                    row.createCell(11).setCellValue(resp != null && resp.getTelefone() != null ? resp.getTelefone() : "");
-                    row.createCell(12).setCellValue(resp != null && resp.getEmail() != null ? resp.getEmail() : "");
+                    Object[] valores = CadastroLinhaRelatorio.de(c).toArray();
+                    for (int col = 0; col < valores.length; col++) {
+                        row.createCell(col).setCellValue(valores[col] != null ? valores[col].toString() : "");
+                    }
                 }
             }
 
-            for (int i = 0; i < CABECALHO.length; i++) {
-                sheet.autoSizeColumn(i);
+            for (int col = 0; col < cabecalho.length; col++) {
+                sheet.autoSizeColumn(col);
             }
 
             workbook.write(out);

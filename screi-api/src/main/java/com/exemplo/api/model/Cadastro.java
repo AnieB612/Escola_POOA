@@ -65,6 +65,21 @@ public class Cadastro {
     public List<ContatoEmergencia> getContatosEmergencia() { return contatosEmergencia; }
     public void setContatosEmergencia(List<ContatoEmergencia> contatosEmergencia) { this.contatosEmergencia = contatosEmergencia; }
 
+    /** Atualiza os blocos de uma etapa do formulário mantendo integridade das coleções */
+    public void atualizarEtapa(Aluno aluno, List<Responsavel> novosResponsaveis, List<ContatoEmergencia> novosContatos) {
+        if (aluno != null) {
+            this.aluno = aluno;
+        }
+        if (novosResponsaveis != null) {
+            this.responsaveis.clear();
+            this.responsaveis.addAll(novosResponsaveis);
+        }
+        if (novosContatos != null) {
+            this.contatosEmergencia.clear();
+            this.contatosEmergencia.addAll(novosContatos);
+        }
+    }
+
     /** Métodos de domínio conforme diagrama UML e regras de negócio encapsuladas */
     public void enviar() {
         this.status = StatusCadastro.ENVIADO;
