@@ -7,12 +7,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-/** Busca endereço pelo CEP no serviço público ViaCEP (https://viacep.com.br). */
+/**
+ * Serviço de integração com o serviço público ViaCEP (https://viacep.com.br).
+ * 
+ * Padrões e Princípios aplicados:
+ * - GoF Adapter: Adapta o formato de dados retornado pela API externa (ViaCepResposta)
+ *   para o modelo de domínio interno da aplicação (Endereco).
+ * - SOLID SRP: Responsabilidade única e exclusiva de consultar e normalizar dados de endereço postal.
+ * - SOLID DIP: Pode ser consumido através da abstração do serviço pela camada de apresentação.
+ */
 @Service
 public class ViaCepService {
 
     private final RestClient client = RestClient.create("https://viacep.com.br/ws");
 
+    /**
+     * Consulta o CEP informado e retorna o Endereço preenchido (+buscarEndereco(cep)).
+     * Conforme diagrama UML e requisito do MVP (Anexo C).
+     *
+     * @param cep CEP com ou sem pontuação
+     * @return Endereco correspondente
+     */
     public Endereco buscarEndereco(String cep) {
         String digitos = cep == null ? "" : cep.replaceAll("\\D", "");
         if (digitos.length() != 8) {

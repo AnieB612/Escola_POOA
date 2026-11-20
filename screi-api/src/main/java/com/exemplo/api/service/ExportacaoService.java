@@ -9,31 +9,42 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Serviço responsável pela geração e download do arquivo de exportação de cadastros (RF013).
- * Utiliza o Exportador (ExportadorXlsx) conforme o diagrama de classes UML.
+ * Aplica os princípios SOLID:
+ * - SRP: Responsável exclusivamente pela coordenação da exportação de dados consolidados.
+ * - OCP e DIP: Depende da abstração Exportador / ExportadorFactory, permitindo novos formatos sem alterar este serviço.
+ * - LSP: Utiliza qualquer implementação de Exportador de forma transparente.
  */
 @Service
 @Transactional(readOnly = true)
 public class ExportacaoService {
 
     private final CadastroRepository repository;
-    private final Exportador exportador;
+    private final ExportadorFactory exportadorFactory;
 
-    public ExportacaoService(CadastroRepository repository, Exportador exportador) {
+    public ExportacaoService(CadastroRepository repository, ExportadorFactory exportadorFactory) {
         this.repository = repository;
-        this.exportador = exportador;
+        this.exportadorFactory = exportadorFactory;
     }
 
     /**
-     * Gera o arquivo de exportação em formato XLSX consolidando os dados dos cadastros aprovados/selecionados.
-     * Conforme diagrama de classes UML (+gerarArquivo()).
+     * Gera o arquivo de exportação consolidando os dados dos cadastros (+gerarArquivo()).
+     * Conforme diagrama de classes UML. Por padrão exporta no formato XLSX.
      */
     public byte[] gerarArquivo(StatusCadastro status) {
+        return gerarArquivo(status, "XLSX");
+    }
+
+    /**
+     * Gera o arquivo no formato solicitado (GoF Strategy via Factory).
+     */
+    public byte[] gerarArquivo(StatusCadastro status, String formato) {
         List<Cadastro> cadastros = repository.findByStatus(status);
+        Exportador exportador = exportadorFactory.obterExportador(formato);
         return exportador.exportar(cadastros);
     }
 
     /**
-     * Método alternativo (+baixarArquivo()) conforme diagrama de componentes/arquitetura.
+     * Alias de consulta (+baixarArquivo()) conforme diagrama de arquitetura.
      */
     public byte[] baixarArquivo(StatusCadastro status) {
         return gerarArquivo(status);

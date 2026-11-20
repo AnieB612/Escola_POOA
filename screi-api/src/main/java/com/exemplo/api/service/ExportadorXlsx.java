@@ -9,13 +9,16 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementação da exportação para XLSX (Excel) utilizando Apache POI.
- * Atende ao requisito RF013 e ao diagrama de classes UML.
+ * Estratégia concreta de exportação em XLSX com Apache POI (Padrão GoF Strategy).
+ * Atende ao requisito funcional RF013 e ao diagrama de classes UML.
+ * Marcado com @Primary para Inversão de Dependência (DIP) padrão.
  */
-@Component
+@Primary
+@Component("exportadorXlsx")
 public class ExportadorXlsx implements Exportador {
 
     private static final String[] CABECALHO = {

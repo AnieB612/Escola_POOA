@@ -65,7 +65,7 @@ public class Cadastro {
     public List<ContatoEmergencia> getContatosEmergencia() { return contatosEmergencia; }
     public void setContatosEmergencia(List<ContatoEmergencia> contatosEmergencia) { this.contatosEmergencia = contatosEmergencia; }
 
-    /** Métodos de domínio conforme diagrama UML */
+    /** Métodos de domínio conforme diagrama UML e regras de negócio encapsuladas */
     public void enviar() {
         this.status = StatusCadastro.ENVIADO;
         this.dataEnvio = LocalDateTime.now();
@@ -77,7 +77,10 @@ public class Cadastro {
     }
 
     public void reprovar(String justificativa) {
+        if (justificativa == null || justificativa.isBlank()) {
+            throw new IllegalArgumentException("Informe a justificativa da reprovação");
+        }
         this.status = StatusCadastro.COM_PENDENCIA;
-        this.justificativa = justificativa;
+        this.justificativa = justificativa.trim();
     }
 }
