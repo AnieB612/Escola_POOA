@@ -2,10 +2,16 @@ package com.exemplo.api.view;
 
 import com.exemplo.api.model.Cadastro;
 import com.exemplo.api.service.TriagemService;
-import java.util.List;
-import org.springframework.web.bind.annotation.*;
 
-/** Rotas usadas pelo funcionário para analisar os cadastros enviados. */
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 @RestController
 @RequestMapping("/api/triagem")
 public class TriagemController {
@@ -16,19 +22,21 @@ public class TriagemController {
         this.triagemService = triagemService;
     }
 
-    /** GET /api/triagem/fila */
     @GetMapping("/fila")
     public List<Cadastro> listarFila() {
         return triagemService.listarFila();
     }
 
-    /** POST /api/triagem/{id}/aprovar */
+    @PostMapping("/{id}/analisar")
+    public Cadastro iniciarAnalise(@PathVariable Long id) {
+        return triagemService.iniciarAnalise(id);
+    }
+
     @PostMapping("/{id}/aprovar")
     public Cadastro aprovar(@PathVariable Long id) {
         return triagemService.aprovar(id);
     }
 
-    /** POST /api/triagem/{id}/reprovar  corpo: { "justificativa": "..." } */
     @PostMapping("/{id}/reprovar")
     public Cadastro reprovar(@PathVariable Long id, @RequestBody ReprovarRequest dados) {
         return triagemService.reprovar(id, dados.justificativa());

@@ -1,22 +1,25 @@
 package com.exemplo.api.service;
 
 import com.exemplo.api.model.Cadastro;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 import org.springframework.stereotype.Component;
 
-/**
- * Estratégia concreta de exportação em formato CSV (GoF Strategy).
- * Utiliza o mesmo modelo tabular de dados para garantir consistência (DRY).
- */
-@Component("exportadorCsv")
+@Component
 public class ExportadorCsv implements Exportador {
 
     @Override
+    public String formato() {
+        return "CSV";
+    }
+
+    @Override
     public byte[] exportar(List<Cadastro> cadastros) {
-        StringBuilder csv = new StringBuilder("\uFEFF"); // BOM UTF-8 para Excel
+        StringBuilder csv = new StringBuilder("\uFEFF");
         csv.append(linha((Object[]) CadastroLinhaRelatorio.CABECALHO));
 
         if (cadastros != null) {

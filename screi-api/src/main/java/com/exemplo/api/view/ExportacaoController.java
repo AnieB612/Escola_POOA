@@ -2,17 +2,18 @@ package com.exemplo.api.view;
 
 import com.exemplo.api.model.StatusCadastro;
 import com.exemplo.api.service.ExportacaoService;
+
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Controller responsável pelo endpoint de exportação de dados (RF013).
- * Atua como Facade na camada de apresentação (GoF Facade).
- * Mapeado conforme diagrama de classes UML (+exportar()).
- */
 @RestController
 @RequestMapping("/api/exportacao")
 public class ExportacaoController {
@@ -23,11 +24,6 @@ public class ExportacaoController {
         this.exportacaoService = exportacaoService;
     }
 
-    /**
-     * GET /api/exportacao (padrão: APROVADO, formato XLSX)
-     * Suporta também formato CSV via parâmetro opcional ?formato=csv
-     * Baixa o arquivo consolidado conforme RF013.
-     */
     @GetMapping
     public ResponseEntity<byte[]> exportar(
             @RequestParam(defaultValue = "APROVADO") StatusCadastro status,
@@ -37,7 +33,7 @@ public class ExportacaoController {
         String nome = "cadastros-" + status.name().toLowerCase() + "-" + LocalDate.now() + "." + ext;
 
         MediaType mediaType = "csv".equalsIgnoreCase(ext)
-                ? new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8)
+                ? new MediaType("text", "csv", StandardCharsets.UTF_8)
                 : MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
         return ResponseEntity.ok()
