@@ -31,8 +31,7 @@ public class TriagemService {
     public Cadastro aprovar(Long id) {
         Cadastro cadastro = cadastroService.buscar(id);
         CadastroService.exigirStatus(cadastro, "aprovar", NA_FILA);
-        cadastro.setStatus(StatusCadastro.APROVADO);
-        cadastro.setJustificativa(null);
+        cadastro.aprovar();
         return cadastro;
     }
 
@@ -43,8 +42,7 @@ public class TriagemService {
         }
         Cadastro cadastro = cadastroService.buscar(id);
         CadastroService.exigirStatus(cadastro, "reprovar", NA_FILA);
-        cadastro.setStatus(StatusCadastro.COM_PENDENCIA);
-        cadastro.setJustificativa(justificativa);
+        cadastro.reprovar(justificativa);
         return cadastro;
     }
 }

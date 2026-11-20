@@ -42,7 +42,7 @@ export default function Exportacao() {
 
   return (
     <div className="pagina estreita">
-      <Cabecalho titulo="Exportação" subtitulo="Baixe uma planilha (CSV, abre no Excel) com os cadastros de um status." />
+      <Cabecalho titulo="Exportação" subtitulo="Baixe uma planilha em formato XLSX (Excel) com os cadastros de um status." />
 
       {erro && <ErroApi erro={erro} />}
 

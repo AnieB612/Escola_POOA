@@ -64,4 +64,20 @@ public class Cadastro {
     public void setResponsaveis(List<Responsavel> responsaveis) { this.responsaveis = responsaveis; }
     public List<ContatoEmergencia> getContatosEmergencia() { return contatosEmergencia; }
     public void setContatosEmergencia(List<ContatoEmergencia> contatosEmergencia) { this.contatosEmergencia = contatosEmergencia; }
+
+    /** Métodos de domínio conforme diagrama UML */
+    public void enviar() {
+        this.status = StatusCadastro.ENVIADO;
+        this.dataEnvio = LocalDateTime.now();
+    }
+
+    public void aprovar() {
+        this.status = StatusCadastro.APROVADO;
+        this.justificativa = null;
+    }
+
+    public void reprovar(String justificativa) {
+        this.status = StatusCadastro.COM_PENDENCIA;
+        this.justificativa = justificativa;
+    }
 }

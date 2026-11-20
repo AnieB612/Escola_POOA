@@ -20,6 +20,9 @@ public class Usuario {
     @Column(unique = true)
     private String email;
 
+    /** Senha criptografada (hash) conforme diagrama UML e RNF002 */
+    private String senhaHash;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     private Perfil perfil;
@@ -30,6 +33,8 @@ public class Usuario {
     public void setNome(String nome) { this.nome = nome; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getSenhaHash() { return senhaHash; }
+    public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
     public Perfil getPerfil() { return perfil; }
     public void setPerfil(Perfil perfil) { this.perfil = perfil; }
 }

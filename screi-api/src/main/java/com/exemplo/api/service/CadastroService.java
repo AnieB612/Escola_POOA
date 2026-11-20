@@ -68,8 +68,7 @@ public class CadastroService {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "O cadastro está incompleto", pendencias);
         }
 
-        cadastro.setStatus(StatusCadastro.ENVIADO);
-        cadastro.setDataEnvio(LocalDateTime.now());
+        cadastro.enviar();
         return cadastro;
     }
 

@@ -155,7 +155,7 @@ export const api = {
       }
       if (!resp.ok) throw new ApiError(resp.status, SEM_CONEXAO)
       const disposicao = resp.headers.get('Content-Disposition') ?? ''
-      const nome = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? 'cadastros.csv'
+      const nome = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? 'cadastros.xlsx'
       return { arquivo: await resp.blob(), nome }
     },
   },
