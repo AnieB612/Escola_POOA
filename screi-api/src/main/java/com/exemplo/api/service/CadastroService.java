@@ -4,8 +4,9 @@ import com.exemplo.api.model.Cadastro;
 import com.exemplo.api.model.StatusCadastro;
 import com.exemplo.api.repository.CadastroRepository;
 import jakarta.validation.Validator;
-import java.time.LocalDateTime;
+
 import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +25,6 @@ public class CadastroService {
         this.validator = validator;
     }
 
-    /**
-     * Cria um cadastro (quando id é null) ou grava uma etapa de um cadastro existente.
-     * Só pode editar enquanto está em RASCUNHO ou COM_PENDENCIA.
-     */
     public Cadastro salvarEtapa(Long id, SalvarEtapaRequest dados) {
         Cadastro cadastro;
         if (id == null) {
@@ -45,7 +42,6 @@ public class CadastroService {
         return repository.save(cadastro);
     }
 
-    /** Envia o cadastro para a triagem. Antes confere se todos os campos obrigatórios foram preenchidos. */
     public Cadastro enviar(Long id) {
         Cadastro cadastro = buscar(id);
         exigirStatus(cadastro, "enviar", StatusCadastro.RASCUNHO, StatusCadastro.COM_PENDENCIA);
@@ -78,7 +74,6 @@ public class CadastroService {
                 .orElseThrow(() -> NegocioException.naoEncontrado("Cadastro " + id + " não encontrado"));
     }
 
-    /** Só rascunhos podem ser excluídos. */
     public void excluir(Long id) {
         Cadastro cadastro = buscar(id);
         exigirStatus(cadastro, "excluir", StatusCadastro.RASCUNHO);

@@ -1,35 +1,30 @@
 package com.exemplo.api.service;
 
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Component;
 
-/**
- * Fábrica de Exportadores (Padrão GoF Factory Method / Simple Factory).
- * Isola a criação/seleção das estratégias de exportação do cliente (DIP e OCP).
- */
 @Component
 public class ExportadorFactory {
 
+    private static final String FORMATO_PADRAO = "XLSX";
     private final Map<String, Exportador> exportadores;
-    private final Exportador exportadorPadrao;
 
-    public ExportadorFactory(ExportadorXlsx exportadorXlsx, ExportadorCsv exportadorCsv) {
-        this.exportadorPadrao = exportadorXlsx;
-        this.exportadores = Map.of(
-            "XLSX", exportadorXlsx,
-            "EXCEL", exportadorXlsx,
-            "CSV", exportadorCsv
-        );
+    public ExportadorFactory(List<Exportador> estrategias) {
+        this.exportadores = estrategias.stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        e -> e.formato().toUpperCase(),
+                        Function.identity()
+                ));
     }
 
-    /**
-     * Retorna a estratégia de exportação correspondente ao formato requisitado.
-     * Retorna o exportador XLSX por padrão (atendendo ao RF013).
-     */
     public Exportador obterExportador(String formato) {
-        if (formato == null || formato.isBlank()) {
-            return exportadorPadrao;
-        }
-        return exportadores.getOrDefault(formato.trim().toUpperCase(), exportadorPadrao);
+        String chave = (formato == null || formato.isBlank())
+                ? FORMATO_PADRAO
+                : formato.trim().toUpperCase();
+        return exportadores.getOrDefault(chave, exportadores.get(FORMATO_PADRAO));
     }
 }

@@ -1,9 +1,23 @@
 package com.exemplo.api.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +38,6 @@ public class Cadastro {
     @Column(length = 1000)
     private String justificativa;
 
-    /** Usuário dono do cadastro: 1 usuário tem 0..* cadastros. */
     @ManyToOne(optional = false)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
@@ -48,24 +61,70 @@ public class Cadastro {
     @NotEmpty(message = "informe ao menos um contato de emergência")
     private List<ContatoEmergencia> contatosEmergencia = new ArrayList<>();
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public StatusCadastro getStatus() { return status; }
-    public void setStatus(StatusCadastro status) { this.status = status; }
-    public LocalDateTime getDataEnvio() { return dataEnvio; }
-    public void setDataEnvio(LocalDateTime dataEnvio) { this.dataEnvio = dataEnvio; }
-    public String getJustificativa() { return justificativa; }
-    public void setJustificativa(String justificativa) { this.justificativa = justificativa; }
-    public Usuario getUsuario() { return usuario; }
-    public void setUsuario(Usuario usuario) { this.usuario = usuario; }
-    public Aluno getAluno() { return aluno; }
-    public void setAluno(Aluno aluno) { this.aluno = aluno; }
-    public List<Responsavel> getResponsaveis() { return responsaveis; }
-    public void setResponsaveis(List<Responsavel> responsaveis) { this.responsaveis = responsaveis; }
-    public List<ContatoEmergencia> getContatosEmergencia() { return contatosEmergencia; }
-    public void setContatosEmergencia(List<ContatoEmergencia> contatosEmergencia) { this.contatosEmergencia = contatosEmergencia; }
+    public Long getId() {
+        return id;
+    }
 
-    /** Atualiza os blocos de uma etapa do formulário mantendo integridade das coleções */
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public StatusCadastro getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusCadastro status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getDataEnvio() {
+        return dataEnvio;
+    }
+
+    public void setDataEnvio(LocalDateTime dataEnvio) {
+        this.dataEnvio = dataEnvio;
+    }
+
+    public String getJustificativa() {
+        return justificativa;
+    }
+
+    public void setJustificativa(String justificativa) {
+        this.justificativa = justificativa;
+    }
+
+    public Usuario getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(Usuario usuario) {
+        this.usuario = usuario;
+    }
+
+    public Aluno getAluno() {
+        return aluno;
+    }
+
+    public void setAluno(Aluno aluno) {
+        this.aluno = aluno;
+    }
+
+    public List<Responsavel> getResponsaveis() {
+        return responsaveis;
+    }
+
+    public void setResponsaveis(List<Responsavel> responsaveis) {
+        this.responsaveis = responsaveis;
+    }
+
+    public List<ContatoEmergencia> getContatosEmergencia() {
+        return contatosEmergencia;
+    }
+
+    public void setContatosEmergencia(List<ContatoEmergencia> contatosEmergencia) {
+        this.contatosEmergencia = contatosEmergencia;
+    }
+
     public void atualizarEtapa(Aluno aluno, List<Responsavel> novosResponsaveis, List<ContatoEmergencia> novosContatos) {
         if (aluno != null) {
             this.aluno = aluno;
@@ -80,10 +139,13 @@ public class Cadastro {
         }
     }
 
-    /** Métodos de domínio conforme diagrama UML e regras de negócio encapsuladas */
     public void enviar() {
         this.status = StatusCadastro.ENVIADO;
         this.dataEnvio = LocalDateTime.now();
+    }
+
+    public void iniciarAnalise() {
+        this.status = StatusCadastro.EM_ANALISE;
     }
 
     public void aprovar() {
