@@ -40,6 +40,7 @@ export function Campo(props: {
   rotulo: string
   children: ReactNode
   dica?: string
+  erro?: string
   obrigatorio?: boolean
   largura?: 1 | 2 | 3 | 4
 }) {
@@ -50,6 +51,7 @@ export function Campo(props: {
         {props.obrigatorio && <em className="obrigatorio"> *</em>}
       </span>
       {props.children}
+      {props.erro && <span className="campo-erro" role="alert">{props.erro}</span>}
       {props.dica && <span className="campo-dica">{props.dica}</span>}
     </label>
   )

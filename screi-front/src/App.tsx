@@ -16,6 +16,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/entrar" element={<Entrar />} />
+            <Route path="/criar-conta" element={<Entrar />} />
 
             <Route element={<Layout />}>
               <Route index element={<Inicio />} />

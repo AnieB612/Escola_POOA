@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   api, comoApiError,
@@ -20,6 +20,185 @@ const ETAPAS = [
   { titulo: 'Revisão', desc: 'Conferir e enviar' },
 ]
 
+type ErrosFormulario = Record<string, string>
+
+function validarCpf(valor: string) {
+  const cpf = valor.replace(/\D/g, '')
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false
+
+  const calcularDigito = (tamanho: number) => {
+    let soma = 0
+    for (let i = 0; i < tamanho; i++) soma += Number(cpf[i]) * (tamanho + 1 - i)
+    const resto = (soma * 10) % 11
+    return resto === 10 ? 0 : resto
+  }
+  return calcularDigito(9) === Number(cpf[9]) && calcularDigito(10) === Number(cpf[10])
+}
+
+function erroCpf(valor: string, rotulo: string) {
+  const nome = rotulo === 'CPF do aluno' ? 'o CPF do aluno' : 'o CPF'
+  if (!valor.trim()) return `Informe ${nome}.`
+  if (validarCpf(valor)) return ''
+  return rotulo === 'CPF do aluno' ? 'O CPF do aluno não é válido.' : 'O CPF informado não é válido.'
+}
+
+function validarEndereco(endereco: Aluno['endereco'], prefixo: string): ErrosFormulario {
+  const erros: ErrosFormulario = {}
+  const adicionar = (campo: string, mensagem: string) => { erros[`${prefixo}.${campo}`] = mensagem }
+  if (endereco.cep.replace(/\D/g, '').length !== 8) adicionar('cep', 'Informe um CEP válido com 8 números.')
+  if (!endereco.logradouro.trim()) adicionar('logradouro', 'Informe o logradouro.')
+  if (!endereco.bairro.trim()) adicionar('bairro', 'Informe o bairro.')
+  if (!endereco.cidade.trim()) adicionar('cidade', 'Informe a cidade.')
+  if (!/^[A-Z]{2}$/.test(endereco.uf)) adicionar('uf', 'Informe uma UF com 2 letras.')
+  return erros
+}
+
+function validarAluno(aluno: Aluno): ErrosFormulario {
+  const erros: ErrosFormulario = {}
+  if (!aluno.nome.trim()) erros['aluno.nome'] = 'Informe o nome do aluno.'
+  if (!aluno.dataNascimento) erros['aluno.dataNascimento'] = 'Informe a data de nascimento.'
+  else {
+    const nascimento = new Date(`${aluno.dataNascimento}T00:00:00`)
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    if (Number.isNaN(nascimento.getTime())) erros['aluno.dataNascimento'] = 'Informe uma data válida.'
+    else if (nascimento > hoje) erros['aluno.dataNascimento'] = 'A data de nascimento não pode ser futura.'
+  }
+  const cpf = erroCpf(aluno.cpf, 'CPF do aluno')
+  if (cpf) erros['aluno.cpf'] = cpf
+  return { ...erros, ...validarEndereco(aluno.endereco, 'aluno.endereco') }
+}
+
+function validarResponsavel(responsavel: Responsavel, indice: number): ErrosFormulario {
+  const prefixo = `responsaveis[${indice}]`
+  const erros: ErrosFormulario = {}
+  if (!responsavel.nome.trim()) erros[`${prefixo}.nome`] = 'Informe o nome do responsável.'
+  const cpf = erroCpf(responsavel.cpf, 'CPF')
+  if (cpf) erros[`${prefixo}.cpf`] = cpf
+  if (!responsavel.parentesco.trim()) erros[`${prefixo}.parentesco`] = 'Informe o parentesco.'
+  const telefone = responsavel.telefone.replace(/\D/g, '')
+  if (telefone.length !== 10 && telefone.length !== 11) {
+    erros[`${prefixo}.telefone`] = 'Informe um telefone com DDD e 8 ou 9 dígitos.'
+  }
+  if (responsavel.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responsavel.email.trim())) {
+    erros[`${prefixo}.email`] = 'Informe um e-mail válido.'
+  }
+  return { ...erros, ...validarEndereco(responsavel.endereco, `${prefixo}.endereco`) }
+}
+
+function validarContato(contato: ContatoEmergencia, indice: number): ErrosFormulario {
+  const prefixo = `contatosEmergencia[${indice}]`
+  const erros: ErrosFormulario = {}
+  if (!contato.nome.trim()) erros[`${prefixo}.nome`] = 'Informe o nome do contato.'
+  const telefone = contato.telefone.replace(/\D/g, '')
+  if (telefone.length !== 10 && telefone.length !== 11) {
+    erros[`${prefixo}.telefone`] = 'Informe um telefone com DDD e 8 ou 9 dígitos.'
+  }
+  if (!contato.parentesco.trim()) erros[`${prefixo}.parentesco`] = 'Informe o parentesco.'
+  return erros
+}
+
+function CampoParentesco({
+  valor,
+  onMudar,
+  erro,
+  onBlur,
+}: {
+  valor: string
+  onMudar: (valor: string) => void
+  erro?: string
+  onBlur: () => void
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [ativo, setAtivo] = useState(-1)
+  const id = useId()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const opcoesId = `${id}-opcoes`
+  const opcoes = PARENTESCOS.filter((parentesco) =>
+    parentesco.toLocaleLowerCase().includes(valor.trim().toLocaleLowerCase()),
+  )
+
+  useEffect(() => {
+    function fecharAoClicarFora(evento: PointerEvent) {
+      if (!containerRef.current?.contains(evento.target as Node)) setAberto(false)
+    }
+    document.addEventListener('pointerdown', fecharAoClicarFora)
+    return () => document.removeEventListener('pointerdown', fecharAoClicarFora)
+  }, [])
+
+  function tratarTecla(evento: KeyboardEvent<HTMLInputElement>) {
+    if (evento.key === 'ArrowDown' || evento.key === 'ArrowUp') {
+      evento.preventDefault()
+      setAberto(true)
+      setAtivo((atual) => {
+        if (!opcoes.length) return -1
+        if (evento.key === 'ArrowDown') return atual < opcoes.length - 1 ? atual + 1 : 0
+        return atual > 0 ? atual - 1 : opcoes.length - 1
+      })
+    } else if (evento.key === 'Enter' && aberto && ativo >= 0 && ativo < opcoes.length) {
+      evento.preventDefault()
+      onMudar(opcoes[ativo])
+      setAberto(false)
+      setAtivo(-1)
+    } else if (evento.key === 'Escape') {
+      setAberto(false)
+      setAtivo(-1)
+    }
+  }
+
+  return (
+    <div className="parentesco-seletor" ref={containerRef}>
+      <div className="parentesco-campo">
+        <input
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={aberto}
+          aria-controls={opcoesId}
+          aria-activedescendant={aberto && ativo >= 0 ? `${id}-opcao-${ativo}` : undefined}
+          aria-invalid={erro ? true : undefined}
+          value={valor}
+          onFocus={() => setAberto(true)}
+          onBlur={onBlur}
+          onChange={(evento) => {
+            onMudar(evento.target.value)
+            setAberto(true)
+            setAtivo(-1)
+          }}
+          onKeyDown={tratarTecla}
+        />
+        <span className={`parentesco-seta${aberto ? ' aberto' : ''}`} aria-hidden="true" />
+      </div>
+      {aberto && (
+        <div className="parentesco-opcoes" id={opcoesId} role="listbox" aria-label="Opções de parentesco">
+          {opcoes.map((parentesco, indice) => {
+            return (
+              <button
+                type="button"
+                id={`${id}-opcao-${indice}`}
+                role="option"
+                aria-selected={valor === parentesco}
+                className={`parentesco-opcao${ativo === indice ? ' ativo' : ''}`}
+                key={parentesco}
+                onPointerDown={(evento) => evento.preventDefault()}
+                onClick={() => {
+                  onMudar(parentesco)
+                  setAberto(false)
+                  setAtivo(-1)
+                }}
+              >
+                {parentesco}
+              </button>
+            )
+          })}
+          {opcoes.length === 0 && (
+            <div className="parentesco-vazio">Nenhuma opção encontrada. Você pode usar esse texto.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Formulário em etapas: cria (rota /novo) ou continua (rota /:id/editar) um cadastro. */
 export default function CadastroFormulario() {
   const { id } = useParams()
@@ -37,6 +216,7 @@ export default function CadastroFormulario() {
   const [carregando, setCarregando] = useState(Boolean(id))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<ApiError | null>(null)
+  const [camposTocados, setCamposTocados] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     if (!id) return
@@ -110,6 +290,16 @@ export default function CadastroFormulario() {
 
   async function enviar() {
     if (!cadastro) return
+    const camposInvalidos = Object.keys(errosCadastro).filter((campo) => errosCadastro[campo])
+    if (camposInvalidos.length) {
+      setCamposTocados((atuais) => new Set([...atuais, ...camposInvalidos]))
+      const etapaDoErro = etapaDaPendencia(camposInvalidos[0])
+      if (etapaDoErro != null && etapaDoErro !== etapa) {
+        setParams({ etapa: String(etapaDoErro) })
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setSalvando(true)
     setErro(null)
     try {
@@ -135,8 +325,26 @@ export default function CadastroFormulario() {
     )
   }
 
-  const mudarAluno = (campo: keyof Aluno) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const mudarAluno = (campo: keyof Aluno) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    tocarCampo(`aluno.${campo}`)
     setAluno({ ...aluno, [campo]: e.target.value })
+  }
+  const errosCadastro = {
+    ...validarAluno(aluno),
+    ...Object.assign({}, ...responsaveis.map(validarResponsavel)),
+    ...Object.assign({}, ...contatos.map(validarContato)),
+  }
+  const erroCampo = (caminho: string) => camposTocados.has(caminho) ? errosCadastro[caminho] : undefined
+  const tocarCampo = (caminho: string) =>
+    setCamposTocados((atuais) => new Set(atuais).add(caminho))
+  const errosEnderecoVisiveis = (prefixo: string) => {
+    const campos: (keyof Aluno['endereco'])[] = ['cep', 'logradouro', 'bairro', 'cidade', 'uf']
+    return Object.fromEntries(
+      campos
+        .map((campo) => [campo, erroCampo(`${prefixo}.${campo}`)])
+        .filter(([, mensagem]) => Boolean(mensagem)),
+    ) as Partial<Record<keyof Aluno['endereco'], string>>
+  }
 
   // ✓ só nas etapas que já têm dados salvos
   const etapaFeita = [
@@ -148,6 +356,23 @@ export default function CadastroFormulario() {
 
   const mudarResp = (i: number, r: Responsavel) => setResponsaveis(responsaveis.map((x, j) => (j === i ? r : x)))
   const mudarContato = (i: number, c: ContatoEmergencia) => setContatos(contatos.map((x, j) => (j === i ? c : x)))
+  function removerItem(colecao: 'responsaveis' | 'contatosEmergencia', indice: number) {
+    setCamposTocados((atuais) => {
+      const regex = new RegExp(`^${colecao}\\[(\\d+)\\](.*)$`)
+      const novos = new Set<string>()
+      for (const campo of atuais) {
+        const correspondencia = regex.exec(campo)
+        if (!correspondencia) {
+          novos.add(campo)
+          continue
+        }
+        const numero = Number(correspondencia[1])
+        if (numero < indice) novos.add(campo)
+        else if (numero > indice) novos.add(`${colecao}[${numero - 1}]${correspondencia[2]}`)
+      }
+      return novos
+    })
+  }
 
   return (
     <div className="pagina estreita">
@@ -195,18 +420,36 @@ export default function CadastroFormulario() {
         <section className="card">
           <h2 className="card-titulo">Dados do aluno</h2>
           <div className="grade">
-            <Campo rotulo="Nome completo" obrigatorio largura={4}>
-              <input value={aluno.nome} onChange={mudarAluno('nome')} placeholder="Nome do aluno" autoFocus />
+            <Campo rotulo="Nome completo" obrigatorio largura={4} erro={erroCampo('aluno.nome')}>
+              <input
+                value={aluno.nome}
+                onChange={mudarAluno('nome')}
+                onBlur={() => tocarCampo('aluno.nome')}
+                aria-invalid={erroCampo('aluno.nome') ? true : undefined}
+                placeholder="Nome do aluno"
+                autoFocus
+              />
             </Campo>
-            <Campo rotulo="Data de nascimento" obrigatorio largura={2}>
-              <input type="date" value={aluno.dataNascimento} onChange={mudarAluno('dataNascimento')} />
+            <Campo rotulo="Data de nascimento" obrigatorio largura={2} erro={erroCampo('aluno.dataNascimento')}>
+              <input
+                type="date"
+                value={aluno.dataNascimento}
+                onChange={mudarAluno('dataNascimento')}
+                onBlur={() => tocarCampo('aluno.dataNascimento')}
+                aria-invalid={erroCampo('aluno.dataNascimento') ? true : undefined}
+              />
             </Campo>
-            <Campo rotulo="CPF do aluno" obrigatorio largura={2}>
+            <Campo rotulo="CPF do aluno" obrigatorio largura={2} erro={erroCampo('aluno.cpf')}>
               <input
                 value={aluno.cpf}
                 inputMode="numeric"
                 placeholder="000.000.000-00"
-                onChange={(e) => setAluno({ ...aluno, cpf: mascaraCpf(e.target.value) })}
+                onBlur={() => tocarCampo('aluno.cpf')}
+                aria-invalid={erroCampo('aluno.cpf') ? true : undefined}
+                onChange={(e) => {
+                  tocarCampo('aluno.cpf')
+                  setAluno({ ...aluno, cpf: mascaraCpf(e.target.value) })
+                }}
               />
             </Campo>
             <Campo rotulo="Observações de saúde" largura={4} dica="Alergias, medicamentos, restrições alimentares, necessidades especiais…">
@@ -215,7 +458,12 @@ export default function CadastroFormulario() {
           </div>
 
           <h3 className="sub-titulo">Endereço do aluno</h3>
-          <CamposEndereco valor={aluno.endereco} onMudar={(endereco) => setAluno({ ...aluno, endereco })} />
+          <CamposEndereco
+            valor={aluno.endereco}
+            onMudar={(endereco) => setAluno({ ...aluno, endereco })}
+            erros={errosEnderecoVisiveis('aluno.endereco')}
+            aoSairCampo={(campo) => tocarCampo(`aluno.endereco.${campo}`)}
+          />
         </section>
       )}
 
@@ -226,26 +474,78 @@ export default function CadastroFormulario() {
               <div className="card-topo">
                 <h2 className="card-titulo">Responsável {i + 1}</h2>
                 {responsaveis.length > 1 && (
-                  <button type="button" className="btn btn-perigo-leve btn-pequeno" onClick={() => setResponsaveis(responsaveis.filter((_, j) => j !== i))}>
+                  <button
+                    type="button"
+                    className="btn btn-perigo-leve btn-pequeno"
+                    onClick={() => {
+                      removerItem('responsaveis', i)
+                      setResponsaveis(responsaveis.filter((_, j) => j !== i))
+                    }}
+                  >
                     Remover
                   </button>
                 )}
               </div>
               <div className="grade">
-                <Campo rotulo="Nome completo" obrigatorio largura={2}>
-                  <input value={r.nome} onChange={(e) => mudarResp(i, { ...r, nome: e.target.value })} />
+                <Campo rotulo="Nome completo" obrigatorio largura={2} erro={erroCampo(`responsaveis[${i}].nome`)}>
+                  <input
+                    value={r.nome}
+                    onChange={(e) => {
+                      tocarCampo(`responsaveis[${i}].nome`)
+                      mudarResp(i, { ...r, nome: e.target.value })
+                    }}
+                    onBlur={() => tocarCampo(`responsaveis[${i}].nome`)}
+                    aria-invalid={erroCampo(`responsaveis[${i}].nome`) ? true : undefined}
+                  />
                 </Campo>
-                <Campo rotulo="Parentesco" obrigatorio>
-                  <input list="parentescos" value={r.parentesco} onChange={(e) => mudarResp(i, { ...r, parentesco: e.target.value })} />
+                <Campo rotulo="Parentesco" obrigatorio erro={erroCampo(`responsaveis[${i}].parentesco`)}>
+                  <CampoParentesco
+                    valor={r.parentesco}
+                    onMudar={(parentesco) => {
+                      tocarCampo(`responsaveis[${i}].parentesco`)
+                      mudarResp(i, { ...r, parentesco })
+                    }}
+                    onBlur={() => tocarCampo(`responsaveis[${i}].parentesco`)}
+                    erro={erroCampo(`responsaveis[${i}].parentesco`)}
+                  />
                 </Campo>
-                <Campo rotulo="CPF" obrigatorio>
-                  <input value={r.cpf} inputMode="numeric" placeholder="000.000.000-00" onChange={(e) => mudarResp(i, { ...r, cpf: mascaraCpf(e.target.value) })} />
+                <Campo rotulo="CPF" obrigatorio erro={erroCampo(`responsaveis[${i}].cpf`)}>
+                  <input
+                    value={r.cpf}
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    onBlur={() => tocarCampo(`responsaveis[${i}].cpf`)}
+                    aria-invalid={erroCampo(`responsaveis[${i}].cpf`) ? true : undefined}
+                    onChange={(e) => {
+                      tocarCampo(`responsaveis[${i}].cpf`)
+                      mudarResp(i, { ...r, cpf: mascaraCpf(e.target.value) })
+                    }}
+                  />
                 </Campo>
-                <Campo rotulo="Telefone" obrigatorio largura={2}>
-                  <input value={r.telefone} inputMode="tel" placeholder="(00) 00000-0000" onChange={(e) => mudarResp(i, { ...r, telefone: mascaraTelefone(e.target.value) })} />
+                <Campo rotulo="Telefone" obrigatorio largura={2} erro={erroCampo(`responsaveis[${i}].telefone`)}>
+                  <input
+                    value={r.telefone}
+                    inputMode="tel"
+                    placeholder="(00) 00000-0000"
+                    onBlur={() => tocarCampo(`responsaveis[${i}].telefone`)}
+                    aria-invalid={erroCampo(`responsaveis[${i}].telefone`) ? true : undefined}
+                    onChange={(e) => {
+                      tocarCampo(`responsaveis[${i}].telefone`)
+                      mudarResp(i, { ...r, telefone: mascaraTelefone(e.target.value) })
+                    }}
+                  />
                 </Campo>
-                <Campo rotulo="E-mail" largura={2}>
-                  <input type="email" value={r.email} onChange={(e) => mudarResp(i, { ...r, email: e.target.value })} />
+                <Campo rotulo="E-mail" largura={2} erro={erroCampo(`responsaveis[${i}].email`)}>
+                  <input
+                    type="email"
+                    value={r.email}
+                    onBlur={() => tocarCampo(`responsaveis[${i}].email`)}
+                    aria-invalid={erroCampo(`responsaveis[${i}].email`) ? true : undefined}
+                    onChange={(e) => {
+                      tocarCampo(`responsaveis[${i}].email`)
+                      mudarResp(i, { ...r, email: e.target.value })
+                    }}
+                  />
                 </Campo>
               </div>
 
@@ -257,7 +557,12 @@ export default function CadastroFormulario() {
                   </button>
                 )}
               </div>
-              <CamposEndereco valor={r.endereco} onMudar={(endereco) => mudarResp(i, { ...r, endereco })} />
+              <CamposEndereco
+                valor={r.endereco}
+                onMudar={(endereco) => mudarResp(i, { ...r, endereco })}
+                erros={errosEnderecoVisiveis(`responsaveis[${i}].endereco`)}
+                aoSairCampo={(campo) => tocarCampo(`responsaveis[${i}].endereco.${campo}`)}
+              />
             </section>
           ))}
           <button type="button" className="btn btn-tracejado" onClick={() => setResponsaveis([...responsaveis, responsavelVazio()])}>
@@ -275,18 +580,52 @@ export default function CadastroFormulario() {
               <div className="linha-contato" key={i}>
                 <span className="linha-num">{i + 1}</span>
                 <div className="grade">
-                  <Campo rotulo="Nome" obrigatorio largura={2}>
-                    <input value={c.nome} onChange={(e) => mudarContato(i, { ...c, nome: e.target.value })} />
+                  <Campo rotulo="Nome" obrigatorio largura={2} erro={erroCampo(`contatosEmergencia[${i}].nome`)}>
+                    <input
+                      value={c.nome}
+                      onChange={(e) => {
+                        tocarCampo(`contatosEmergencia[${i}].nome`)
+                        mudarContato(i, { ...c, nome: e.target.value })
+                      }}
+                      onBlur={() => tocarCampo(`contatosEmergencia[${i}].nome`)}
+                      aria-invalid={erroCampo(`contatosEmergencia[${i}].nome`) ? true : undefined}
+                    />
                   </Campo>
-                  <Campo rotulo="Telefone" obrigatorio>
-                    <input value={c.telefone} inputMode="tel" placeholder="(00) 00000-0000" onChange={(e) => mudarContato(i, { ...c, telefone: mascaraTelefone(e.target.value) })} />
+                  <Campo rotulo="Telefone" obrigatorio erro={erroCampo(`contatosEmergencia[${i}].telefone`)}>
+                    <input
+                      value={c.telefone}
+                      inputMode="tel"
+                      placeholder="(00) 00000-0000"
+                      onBlur={() => tocarCampo(`contatosEmergencia[${i}].telefone`)}
+                      aria-invalid={erroCampo(`contatosEmergencia[${i}].telefone`) ? true : undefined}
+                      onChange={(e) => {
+                        tocarCampo(`contatosEmergencia[${i}].telefone`)
+                        mudarContato(i, { ...c, telefone: mascaraTelefone(e.target.value) })
+                      }}
+                    />
                   </Campo>
-                  <Campo rotulo="Parentesco" obrigatorio>
-                    <input list="parentescos" value={c.parentesco} onChange={(e) => mudarContato(i, { ...c, parentesco: e.target.value })} />
+                  <Campo rotulo="Parentesco" obrigatorio erro={erroCampo(`contatosEmergencia[${i}].parentesco`)}>
+                    <CampoParentesco
+                      valor={c.parentesco}
+                      onMudar={(parentesco) => {
+                        tocarCampo(`contatosEmergencia[${i}].parentesco`)
+                        mudarContato(i, { ...c, parentesco })
+                      }}
+                      onBlur={() => tocarCampo(`contatosEmergencia[${i}].parentesco`)}
+                      erro={erroCampo(`contatosEmergencia[${i}].parentesco`)}
+                    />
                   </Campo>
                 </div>
                 {contatos.length > 1 && (
-                  <button type="button" className="icone-btn" aria-label={`Remover contato ${i + 1}`} onClick={() => setContatos(contatos.filter((_, j) => j !== i))}>
+                  <button
+                    type="button"
+                    className="icone-btn"
+                    aria-label={`Remover contato ${i + 1}`}
+                    onClick={() => {
+                      removerItem('contatosEmergencia', i)
+                      setContatos(contatos.filter((_, j) => j !== i))
+                    }}
+                  >
                     ×
                   </button>
                 )}
@@ -313,12 +652,6 @@ export default function CadastroFormulario() {
             Preencha as etapas anteriores primeiro.
           </Aviso>
         ))}
-
-      <datalist id="parentescos">
-        {PARENTESCOS.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
 
       <div className="barra-acoes">
         <button type="button" className="btn btn-fantasma" disabled={salvando || etapa === 0} onClick={() => irPara(etapa - 1)}>

@@ -52,7 +52,7 @@ export default function Layout() {
                 navigate('/entrar')
               }}
             >
-              Trocar
+              Sair
             </button>
           </div>
         </div>
