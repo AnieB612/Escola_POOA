@@ -26,6 +26,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
                         .requestMatchers("/api/usuarios/**").hasRole("FUNCIONARIO")
                         .requestMatchers("/api/cadastros/cep/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/cadastros", "/api/cadastros/**").hasAnyRole("RESPONSAVEL", "FUNCIONARIO")
                         .requestMatchers("/api/cadastros/**").hasRole("RESPONSAVEL")
                         .requestMatchers("/api/triagem/**", "/api/exportacao/**").hasRole("FUNCIONARIO")
                         .anyRequest().authenticated())

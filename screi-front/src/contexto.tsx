@@ -1,7 +1,5 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
-import type { Usuario } from './api'
-
-// ---------- Usuário logado (sem senha: só escolhe quem está usando) ----------
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { limparCredenciais, type Usuario } from './api'
 
 const CHAVE = 'screi.usuario'
 
@@ -15,7 +13,7 @@ const AuthContext = createContext<AuthCtx | null>(null)
 
 function lerSalvo(): Usuario | null {
   try {
-    const s = localStorage.getItem(CHAVE)
+    const s = sessionStorage.getItem(CHAVE)
     return s ? (JSON.parse(s) as Usuario) : null
   } catch {
     return null
@@ -27,13 +25,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const entrar = useCallback((u: Usuario) => {
     setUsuario(u)
-    try { localStorage.setItem(CHAVE, JSON.stringify(u)) } catch { /* navegador sem storage */ }
+    try { sessionStorage.setItem(CHAVE, JSON.stringify(u)) } catch { /* navegador sem storage */ }
   }, [])
 
   const sair = useCallback(() => {
     setUsuario(null)
-    try { localStorage.removeItem(CHAVE) } catch { /* navegador sem storage */ }
+    try {
+      limparCredenciais()
+      sessionStorage.removeItem(CHAVE)
+    } catch { /* navegador sem storage */ }
   }, [])
+
+  useEffect(() => {
+    window.addEventListener('screi:unauthorized', sair)
+    return () => window.removeEventListener('screi:unauthorized', sair)
+  }, [sair])
 
   return <AuthContext.Provider value={{ usuario, entrar, sair }}>{children}</AuthContext.Provider>
 }

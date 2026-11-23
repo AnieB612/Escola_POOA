@@ -10,6 +10,13 @@ export interface Usuario {
   perfil: Perfil
 }
 
+export interface CriarUsuario {
+  nome: string
+  email: string
+  senha: string
+  perfil: Perfil
+}
+
 export interface Endereco {
   cep: string
   logradouro: string
@@ -80,6 +87,56 @@ export class ApiError extends Error {
 
 const SEM_CONEXAO =
   'Não foi possível falar com a API. Confira se ela está rodando (.\\mvnw.cmd spring-boot:run na pasta da API).'
+const CHAVE_CREDENCIAIS = 'screi.credenciais'
+
+interface Credenciais {
+  email: string
+  senha: string
+}
+
+function lerCredenciais(): Credenciais | null {
+  try {
+    const salvo = sessionStorage.getItem(CHAVE_CREDENCIAIS)
+    return salvo ? (JSON.parse(salvo) as Credenciais) : null
+  } catch {
+    return null
+  }
+}
+
+export function guardarCredenciais(email: string, senha: string) {
+  sessionStorage.setItem(CHAVE_CREDENCIAIS, JSON.stringify({ email, senha }))
+}
+
+export function limparCredenciais() {
+  sessionStorage.removeItem(CHAVE_CREDENCIAIS)
+}
+
+function basicAuth(email: string, senha: string) {
+  const bytes = new TextEncoder().encode(`${email}:${senha}`)
+  let binario = ''
+  for (const byte of bytes) binario += String.fromCharCode(byte)
+  return `Basic ${btoa(binario)}`
+}
+
+async function buscar(caminho: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  headers.set('X-Requested-With', 'XMLHttpRequest')
+  const credenciais = lerCredenciais()
+  if (credenciais) headers.set('Authorization', basicAuth(credenciais.email, credenciais.senha))
+
+  let resp: Response
+  try {
+    resp = await fetch(caminho, { ...init, headers })
+  } catch {
+    throw new ApiError(0, SEM_CONEXAO)
+  }
+
+  if (resp.status === 401 && credenciais) {
+    limparCredenciais()
+    window.dispatchEvent(new Event('screi:unauthorized'))
+  }
+  return resp
+}
 
 export function comoApiError(e: unknown): ApiError {
   if (e instanceof ApiError) return e
@@ -92,16 +149,11 @@ function paraJson(corpo: unknown) {
 }
 
 async function chamar<T>(metodo: string, caminho: string, corpo?: unknown): Promise<T> {
-  let resp: Response
-  try {
-    resp = await fetch('/api' + caminho, {
-      method: metodo,
-      headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: corpo !== undefined ? paraJson(corpo) : undefined,
-    })
-  } catch {
-    throw new ApiError(0, SEM_CONEXAO)
-  }
+  const resp = await buscar('/api' + caminho, {
+    method: metodo,
+    headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: corpo !== undefined ? paraJson(corpo) : undefined,
+  })
 
   if (!resp.ok) {
     let dados: { mensagem?: string; pendencias?: string[] } | null = null
@@ -123,7 +175,7 @@ async function chamar<T>(metodo: string, caminho: string, corpo?: unknown): Prom
 export const api = {
   usuarios: {
     listar: () => chamar<Usuario[]>('GET', '/usuarios'),
-    criar: (u: Omit<Usuario, 'id'>) => chamar<Usuario>('POST', '/usuarios', u),
+    criar: (u: CriarUsuario) => chamar<Usuario>('POST', '/usuarios', u),
   },
 
   cadastros: {
@@ -147,12 +199,7 @@ export const api = {
 
   exportacao: {
     async exportar(status: StatusCadastro): Promise<{ arquivo: Blob; nome: string }> {
-      let resp: Response
-      try {
-        resp = await fetch(`/api/exportacao?status=${status}`)
-      } catch {
-        throw new ApiError(0, SEM_CONEXAO)
-      }
+      const resp = await buscar(`/api/exportacao?status=${status}`)
       if (!resp.ok) throw new ApiError(resp.status, SEM_CONEXAO)
       const disposicao = resp.headers.get('Content-Disposition') ?? ''
       const nome = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? 'cadastros.xlsx'
