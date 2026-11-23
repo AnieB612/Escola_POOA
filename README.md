@@ -7,7 +7,7 @@ A proposta é reduzir a digitação manual, facilitar o acompanhamento dos cadas
 
 **Disciplina:** Programação Orientada a Objetos Avançada (POOA)  
 **Semestre:** 2026.2  
-**Turma:** BES — quinta-feira, noturno  
+**Turma:** BES - quinta-feira, noturno  
 **Professor:** Mario Jorge Pereira  
 **Equipe:** Caiane Santos, Luiz Vasconcelos, Mariana Conceição, Paulo Vitor e Yuane Miranda
 
